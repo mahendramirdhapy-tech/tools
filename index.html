@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Tools Hub</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Reset & basic styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    body {
+      background-color: #f5f7fa;
+      color: #333;
+    }
+
+    header {
+      background-color: #4f46e5;
+      color: white;
+      padding: 20px 0;
+      text-align: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+    }
+
+    nav {
+      margin-top: 10px;
+    }
+
+    nav a {
+      color: white;
+      text-decoration: none;
+      margin: 0 15px;
+      font-weight: bold;
+      transition: color 0.3s;
+    }
+
+    nav a:hover {
+      color: #c7d2fe;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 80px 20px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .hero h2 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+
+    .hero p {
+      font-size: 1.2rem;
+      margin-bottom: 30px;
+    }
+
+    .hero button {
+      padding: 12px 30px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #ff6363;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .hero button:hover {
+      background-color: #ff4c4c;
+    }
+
+    .tools-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      padding: 50px 20px;
+    }
+
+    .tool-card {
+      background-color: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+      text-align: center;
+      transition: transform 0.3s;
+    }
+
+    .tool-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .tool-card h3 {
+      margin-bottom: 15px;
+      color: #4f46e5;
+    }
+
+    .tool-card p {
+      margin-bottom: 20px;
+    }
+
+    .tool-card button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      background-color: #4f46e5;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .tool-card button:hover {
+      background-color: #6366f1;
+    }
+
+    footer {
+      background-color: #1f2937;
+      color: #cbd5e1;
+      text-align: center;
+      padding: 20px 0;
+      margin-top: 40px;
+    }
+
+    @media(max-width: 600px){
+      .hero h2{
+        font-size:1.5rem;
+      }
+      .hero p{
+        font-size:1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>My Tools Hub</h1>
+    <nav>
+      <a href="#tools">Tools</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h2>All Your Tools in One Place</h2>
+    <p>Explore useful tools to boost your productivity and creativity.</p>
+    <button onclick="scrollToTools()">Explore Tools</button>
+  </section>
+
+  <section id="tools" class="tools-section">
+    <div class="tool-card">
+      <h3>Audio Silent Remover</h3>
+      <p>Remove unwanted silence from your audio files quickly.</p>
+      <button onclick="openTool('audio-silent-r.html')">Open</button>
+    </div>
+    <div class="tool-card">
+      <h3>Video Silent Remover</h3>
+      <p>Eliminate silent portions from your videos easily.</p>
+      <button onclick="openTool('video-silent-r.html')">Open</button>
+    </div>
+    <div class="tool-card">
+      <h3>Audio Enhancer</h3>
+      <p>Enhance the quality and clarity of your audio files.</p>
+      <button onclick="openTool('audio-enhance.html')">Open</button>
+    </div>
+  </section>
+
+  <footer>
+    &copy; 2025 My Tools Hub. All rights reserved.
+  </footer>
+
+  <script>
+    function scrollToTools() {
+      document.getElementById('tools').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function openTool(url) {
+      window.open(url, '_blank');
+    }
+  </script>
+
+</body>
+</html>
