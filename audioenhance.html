@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Enhancer</title>
+<style>
+body { font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; background:#f2f4f7; color:#111; }
+header { text-align:center; padding:2rem; background:#0b74ff; color:#fff; }
+header h1 { margin:0; font-size:2rem; }
+main { max-width:900px; margin:auto; padding:1rem; }
+label { display:block; margin-top:12px; font-weight:600; }
+input[type=file], input[type=range] { margin-top:6px; width:100%; }
+.controls { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+button { background:#0b74ff; color:#fff; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
+button:disabled { opacity:0.5; cursor:default; }
+audio { width:100%; margin-top:12px; }
+#log { margin-top:12px; padding:8px; background:#e1f0ff; border-radius:6px; color:#08306b; font-size:14px; }
+@media(max-width:600px){ .controls { flex-direction:column; } }
+</style>
+</head>
+<body>
+<header><h1>Audio Enhancer</h1></header>
+<main>
+<label>Upload Audio File</label>
+<input type="file" id="audioFile" accept="audio/*">
+
+<label>Gain (Volume)</label>
+<input type="range" id="gainSlider" min="0" max="3" step="0.05" value="1">
+
+<label>Bass Boost</label>
+<input type="range" id="bassSlider" min="-15" max="15" step="1" value="0">
+
+<label>Treble Boost</label>
+<input type="range" id="trebleSlider" min="-15" max="15" step="1" value="0">
+
+<div class="controls">
+<button id="playOriginal" disabled>Play Original</button>
+<button id="playEnhanced" disabled>Play Enhanced</button>
+<a id="downloadLink" style="display:none;"><button>Download Enhanced</button></a>
+</div>
+
+<audio id="audioPlayer" controls></audio>
+<div id="log">Waiting for file...</div>
+<a href="index.html">&larr; Back to Home</a>
+
+<script>
+const audioFileInput = document.getElementById('audioFile');
+const playOriginalBtn = document.getElementById('playOriginal');
+const playEnhancedBtn = document.getElementById('playEnhanced');
+const downloadLink = document.getElementById('downloadLink');
+const gainSlider = document.getElementById('gainSlider');
+const bassSlider = document.getElementById('bassSlider');
+const trebleSlider = document.getElementById('trebleSlider');
+const audioPlayer = document.getElementById('audioPlayer');
+const logEl = document.getElementById('log');
+
+let audioCtx;
+let origBuffer;
+let origSource, enhancedSource;
+
+audioFileInput.addEventListener('change', async e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    log('Loading audio...');
+    const arrayBuffer = await file.arrayBuffer();
+    // Only create AudioContext on user gesture
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    origBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    audioPlayer.src = URL.createObjectURL(file);
+    playOriginalBtn.disabled = false;
+    playEnhancedBtn.disabled = false;
+    renderEnhanced(); // prepare download
+    log('Audio loaded. Adjust sliders and play enhanced audio.');
+});
+
+// Play Original Audio
+playOriginalBtn.addEventListener('click', ()=>{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(origSource) origSource.stop();
+    origSource = audioCtx.createBufferSource();
+    origSource.buffer = origBuffer;
+    origSource.connect(audioCtx.destination);
+    origSource.start();
+});
+
+// Play Enhanced Audio
+playEnhancedBtn.addEventListener('click', ()=>{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(!origBuffer) return;
+    if(enhancedSource) enhancedSource.stop();
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = origBuffer;
+
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.value = parseFloat(gainSlider.value);
+
+    const bassFilter = audioCtx.createBiquadFilter();
+    bassFilter.type = 'lowshelf';
+    bassFilter.frequency.value = 200;
+    bassFilter.gain.value = parseFloat(bassSlider.value);
+
+    const trebleFilter = audioCtx.createBiquadFilter();
+    trebleFilter.type = 'highshelf';
+    trebleFilter.frequency.value = 3000;
+    trebleFilter.gain.value = parseFloat(trebleSlider.value);
+
+    source.connect(bassFilter);
+    bassFilter.connect(trebleFilter);
+    trebleFilter.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    source.start();
+    enhancedSource = source;
+});
+
+// Render enhanced audio for download
+async function renderEnhanced(){
+    if(!audioCtx || !origBuffer) return;
+    const offlineCtx = new OfflineAudioContext(origBuffer.numberOfChannels, origBuffer.length, origBuffer.sampleRate);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = origBuffer;
+
+    const gainNode = offlineCtx.createGain();
+    gainNode.gain.value = parseFloat(gainSlider.value);
+
+    const bassFilter = offlineCtx.createBiquadFilter();
+    bassFilter.type = 'lowshelf';
+    bassFilter.frequency.value = 200;
+    bassFilter.gain.value = parseFloat(bassSlider.value);
+
+    const trebleFilter = offlineCtx.createBiquadFilter();
+    trebleFilter.type = 'highshelf';
+    trebleFilter.frequency.value = 3000;
+    trebleFilter.gain.value = parseFloat(trebleSlider.value);
+
+    source.connect(bassFilter);
+    bassFilter.connect(trebleFilter);
+    trebleFilter.connect(gainNode);
+    gainNode.connect(offlineCtx.destination);
+    source.start(0);
+
+    const renderedBuffer = await offlineCtx.startRendering();
+    const wavBlob = bufferToWave(renderedBuffer);
+    if(downloadLink.href) URL.revokeObjectURL(downloadLink.href);
+    downloadLink.href = URL.createObjectURL(wavBlob);
+    downloadLink.download = 'enhanced_audio.wav';
+    downloadLink.style.display='inline-block';
+}
+
+// Convert AudioBuffer to WAV
+function bufferToWave(abuffer){
+    let numOfChan = abuffer.numberOfChannels,
+        length = abuffer.length * numOfChan * 2 + 44,
+        buffer = new ArrayBuffer(length),
+        view = new DataView(buffer),
+        channels = [],
+        i, sample,
+        pos = 0;
+
+    function setUint16(data){ view.setUint16(pos, data, true); pos+=2; }
+    function setUint32(data){ view.setUint32(pos, data, true); pos+=4; }
+
+    setUint32(0x46464952); setUint32(length-8); setUint32(0x45564157); setUint32(0x20746d66);
+    setUint32(16); setUint16(1); setUint16(numOfChan); setUint32(abuffer.sampleRate);
+    setUint32(abuffer.sampleRate*2*numOfChan); setUint16(numOfChan*2); setUint16(16); setUint32(0x61746164);
+    setUint32(length-44);
+
+    for(i=0;i<numOfChan;i++) channels.push(abuffer.getChannelData(i));
+    for(i=0;i<abuffer.length;i++){
+        for(let ch=0;ch<numOfChan;ch++){
+            sample=Math.max(-1,Math.min(1,channels[ch][i]));
+            view.setInt16(pos,sample<0?sample*0x8000:sample*0x7FFF,true);
+            pos+=2;
+        }
+    }
+    return new Blob([buffer],{type:'audio/wav'});
+}
+
+// Update enhanced audio on slider change
+[gainSlider,bassSlider,trebleSlider].forEach(slider=>{
+    slider.addEventListener('input', renderEnhanced);
+});
+</script>
+</main>
+</body>
+</html>
