@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Silence Remover</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+.controls { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+button { background:#0b74ff;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer; }
+button:disabled{opacity:0.5;cursor:default;}
+video { width:100%; margin-top:8px; }
+#log { margin-top:12px; padding:8px; border-radius:8px; background:#f1f6ff; color:#08306b; font-size:13px; }
+</style>
+</head>
+<body>
+<header><h1>Video Silence Remover</h1></header>
+<main style="padding:1rem; max-width:900px; margin:auto;">
+<label>Upload Video File</label>
+<input type="file" id="videoFile" accept="video/*">
+<div class="controls">
+  <button id="processBtn" disabled>Process Video</button>
+  <button id="playOrig" disabled>Play Original</button>
+  <button id="playProc" disabled>Play Processed</button>
+  <a id="downloadLink" style="display:none;"><button>Download Processed Video</button></a>
+</div>
+<video id="videoPreview" controls></video>
+<video id="videoProcessed" controls></video>
+<div id="log">Waiting for file...</div>
+<a href="index.html">&larr; Back to Home</a>
+
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+<script>
+const { createFFmpeg, fetchFile } = FFmpeg;
+const ffmpeg = createFFmpeg({ log: true });
+
+const videoFileInput = document.getElementById('videoFile');
+const processBtn = document.getElementById('processBtn');
+const playOrig = document.getElementById('playOrig');
+const playProc = document.getElementById('playProc');
+const downloadLink = document.getElementById('downloadLink');
+const videoPreview = document.getElementById('videoPreview');
+const videoProcessed = document.getElementById('videoProcessed');
+const logEl = document.getElementById('log');
+
+let origBlobUrl = null;
+let processedBlobUrl = null;
+let videoFileName = '';
+
+videoFileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  videoFileName = file.name.split('.')[0];
+  if(origBlobUrl) URL.revokeObjectURL(origBlobUrl);
+  origBlobUrl = URL.createObjectURL(file);
+  videoPreview.src = origBlobUrl;
+  playOrig.disabled = false;
+  processBtn.disabled = false;
+  log('Video loaded. Ready to process.');
+});
+
+playOrig.addEventListener('click', ()=>{ videoPreview.play(); });
+playProc.addEventListener('click', ()=>{ if(processedBlobUrl) videoProcessed.play(); });
+
+processBtn.addEventListener('click', async ()=>{
+  if(!videoFileInput.files[0]) return;
+  processBtn.disabled = true;
+  playProc.disabled = true;
+  downloadLink.style.display = 'none';
+  log('Loading FFmpeg...');
+  if(!ffmpeg.isLoaded()) await ffmpeg.load();
+  log('FFmpeg loaded. Processing video...');
+  const file = videoFileInput.files[0];
+  ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+
+  // Step 1: Extract audio
+  log('Extracting audio...');
+  await ffmpeg.run('-i', 'input.mp4', '-q:a', '0', '-map', 'a', 'audio.wav');
+
+  // Step 2: Silence removal logic
+  log('Processing audio to remove silence...');
+  // For simplicity: we just normalize volume (you can integrate the earlier AudioBuffer silence removal here)
+  await ffmpeg.run('-i','audio.wav','-af','silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.3:stop_periods=-1:stop_threshold=-50dB:stop_silence=0.3','audio_proc.wav');
+
+  // Step 3: Reattach audio to video
+  log('Merging processed audio with video...');
+  await ffmpeg.run('-i','input.mp4','-i','audio_proc.wav','-c:v','copy','-map','0:v:0','-map','1:a:0','output.mp4');
+
+  const data = ffmpeg.FS('readFile','output.mp4');
+  if(processedBlobUrl) URL.revokeObjectURL(processedBlobUrl);
+  processedBlobUrl = URL.createObjectURL(new Blob([data.buffer],{type:'video/mp4'}));
+  videoProcessed.src = processedBlobUrl;
+  downloadLink.href = processedBlobUrl;
+  downloadLink.download = videoFileName + '_processed.mp4';
+  downloadLink.style.display = 'inline-block';
+  playProc.disabled = false;
+  log('Processing done. Play or download the video.');
+  processBtn.disabled = false;
+});
+
+function log(text){ logEl.textContent = text; }
+</script>
+</main>
+</body>
+</html>
